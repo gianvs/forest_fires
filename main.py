@@ -1,3 +1,4 @@
+""" This file fetches data from the online SQL table containing number of forest fires data through each month from 1998 to 2016 and creates a bar graph of the numbers of forest fires in a brazilian state (determined by the user) vs the years."""
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
