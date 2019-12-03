@@ -1,10 +1,21 @@
-import amazon_table
-import psycopg2
-from psycopg2 import sql
+""" This file fetches data from the online SQL table containing number of forest fires data through each month from 1998 to 2016 and creates a bar graph of the numbers of forest fires in a brazilian state (determined by the user) vs the years."""
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import sqlalchemy
+from sqlalchemy import Table, MetaData
+from sqlalchemy.orm import sessionmaker
 
+# defining functions used to acquire data from the SQL table (previously contained in 'amazon_table.py' file and implemented with psycopg2), and to plot graph.
+
+def get_states(table,engine):
+    return pd.read_sql(sqlalchemy.select([table.columns.state]),engine).drop_duplicates().iloc[:,0]
+
+def get_years(table,engine):
+    return pd.read_sql(sqlalchemy.select([table.columns.year]),engine).drop_duplicates().iloc[:,0]
+
+def get_plot_data(table,engine,state):
+    return pd.read_sql(sqlalchemy.select([table.columns.year,table.columns.number]).where(table.columns.state == state),engine)
 
 def plot_bar_graph(x_data, y_data, x_label, y_label, title):
     # this is for plotting purpose
@@ -17,11 +28,17 @@ def plot_bar_graph(x_data, y_data, x_label, y_label, title):
     plt.show()
 
 
-connection = psycopg2.connect(dbname='gian', user='gian', password='teste', host='localhost', port='5432')
-cursor = connection.cursor()
+engine = sqlalchemy.create_engine('mysql+pymysql://WxVyhiGBXQ:RKAsHKo3zg@remotemysql.com:3306/WxVyhiGBXQ')
+Session = sessionmaker(bind = engine)
+session = Session()
+meta = MetaData()
+amazon = Table('amazon', meta, autoload=True, autoload_with=engine)
 
-states = amazon_table.get_states(cursor).tolist()
-while (True):
+states = get_states(amazon,engine).tolist()
+years = get_years(amazon,engine).tolist()
+
+
+while True:
     for i in range(len(states)):
         print(str(i + 1) + ' ' + states[i] + '\t\t', end=" ")
         if (i + 1) % 4 == 0:
@@ -34,15 +51,8 @@ while (True):
         break;
 
     if (user_input >= 1) and (user_input <= len(states)):
-        cursor.execute(sql.SQL("select year from public.amazon"))
-        years = pd.DataFrame(cursor.fetchall()).drop_duplicates().iloc[:, 0]
-        query = "SELECT {} FROM public.amazon WHERE state = %s;"
-        columns = ("year", "number")
-        state = [states[user_input - 1]]
-        cursor.execute(sql.SQL(query).format(sql.SQL(', ').join(map(sql.Identifier, columns))), state)
-        data_acquired = pd.DataFrame(data=cursor.fetchall(), columns=columns)
-        print(type(years))
-        print(type(data_acquired['year']))
+        data_acquired = data = get_plot_data(amazon,engine,states[user_input])
+
         # Calculates the number of forest fires by year
         forest_fires_by_year = []
         for i in data_acquired['year'].drop_duplicates():
